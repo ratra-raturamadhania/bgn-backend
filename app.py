@@ -13,8 +13,10 @@ from models import db, User, Sekolah, LaporanPengawasan, Laporan
 app = Flask(__name__)
 CORS(app)
 
-# KONEKSI DATABASE & CONFIG UPLOAD
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/bgn_mbg'
+# =========================================================================
+# KONEKSI DATABASE & CONFIG UPLOAD (MENGGUNAKAN SQLITE UNTUK PYTHONANYWHERE FREE)
+# =========================================================================
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bgn_mbg.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = 'static/uploads/bukti_laporan'
@@ -25,8 +27,8 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'permenchoco58@gmail.com' 
-app.config['MAIL_PASSWORD'] = 'jkbaadwvmviaawjo' 
+app.config['MAIL_USERNAME'] = 'permenchoco58@gmail.com'
+app.config['MAIL_PASSWORD'] = 'jkbaadwvmviaawjo'
 app.config['MAIL_DEFAULT_SENDER'] = 'permenchoco58@gmail.com'
 
 mail = Mail(app)
@@ -68,6 +70,10 @@ ROUTING_TABLE = {
 # ENDPOINTS API AUTHENTICATION & MANAJEMEN PASSWORD
 # =========================================================================
 
+@app.route('/')
+def home():
+    return "Server Backend BGN-MBG Berjalan dengan Lancar di PythonAnywhere!"
+
 @app.route('/api/auth/register', methods=['POST'])
 def register_akun():
     try:
@@ -102,7 +108,7 @@ def register_akun():
 
         return jsonify({
             "status": "success",
-            "message": "Akun berhasil didaftarkan ke sistem MySQL!"
+            "message": "Akun berhasil didaftarkan ke sistem SQLite!"
         }), 201
 
     except Exception as e:
@@ -199,7 +205,7 @@ def kirim_laporan():
     try:
         user_id = request.form.get('user_id', '1')
         instansi_asal = request.form.get('instansi_asal', request.form.get('nama_puskesmas', 'Instansi Tanpa Nama')) 
-        lokasi_instansi = request.form.get('lokasi_instansi', request.form.get('alamat_lokasi', 'Lokasi Kosong'))   
+        lokasi_instansi = request.form.get('lokasi_instansi', request.form.get('alamat_lokasi', 'Lokasi Kosong'))    
         latitude = request.form.get('latitude')
         longitude = request.form.get('longitude')
         tanggal_str = request.form.get('tanggal_laporan')
@@ -274,7 +280,6 @@ def ambil_riwayat(user_id):
             
         role_lower = user.peran.lower() if user.peran else ''
         
-        # 1. DINAS KESEHATAN (Puskesmas + SPPG Isu Pasokan/Higienitas)
         if 'dinas kesehatan' in role_lower or 'dinkes' in role_lower:
             laporan_list = Laporan.query.join(User, Laporan.user_id == User.id, isouter=True).filter(
                 (User.peran.ilike('%puskesmas%')) | 
@@ -282,14 +287,12 @@ def ambil_riwayat(user_id):
                 (Laporan.jenis_laporan.ilike('%Higienitas%'))
             ).order_by(Laporan.tanggal_laporan.desc()).all()
 
-        # 2. DINAS PENDIDIKAN (Petugas Sekolah + SPPG Isu Distribusi)
         elif 'dinas pendidikan' in role_lower or 'disdik' in role_lower:
             laporan_list = Laporan.query.join(User, Laporan.user_id == User.id, isouter=True).filter(
                 (User.peran.ilike('%sekolah%')) | 
                 (Laporan.jenis_laporan.ilike('%Distribusi%'))
             ).order_by(Laporan.tanggal_laporan.desc()).all()
 
-        # 3. DINAS LINGKUNGAN HIDUP (Petugas Limbah + SPPG Isu Kebakaran/Gas/Limbah)
         elif 'dinas lingkungan hidup' in role_lower or 'dlh' in role_lower:
             laporan_list = Laporan.query.join(User, Laporan.user_id == User.id, isouter=True).filter(
                 (User.peran.ilike('%limbah%')) | 
@@ -297,11 +300,9 @@ def ambil_riwayat(user_id):
                 (Laporan.jenis_laporan.ilike('%Gas%'))
             ).order_by(Laporan.tanggal_laporan.desc()).all()
 
-        # 4. MONITORING BGN / MBG / ADMIN (Melihat Semua Laporan)
         elif role_lower in ['bgn', 'mbg', 'admin']:
             laporan_list = Laporan.query.order_by(Laporan.tanggal_laporan.desc()).all()
 
-        # 5. AKUN PETUGAS INDIVIDUAL / SPPG
         else:
             laporan_list = Laporan.query.filter_by(user_id=user_id).order_by(Laporan.tanggal_laporan.desc()).all()
 
@@ -377,7 +378,6 @@ def kirim_laporan_sppg():
         except (ValueError, TypeError):
             user_id = 1
 
-        # Pemetaan Routing Dinas
         pemetaan = ROUTING_TABLE.get(jenis_kendala, {
             'dinas': 'BGN Pusat',
             'ranah': 'Penanganan umum internal SPPG'
@@ -385,7 +385,6 @@ def kirim_laporan_sppg():
         dinas_tujuan = pemetaan['dinas']
         ranah_tujuan = pemetaan['ranah']
 
-        # Handle Foto Bukti
         unique_filename = "default_bukti.jpg"
         if 'foto_bukti' in request.files:
             file = request.files['foto_bukti']
@@ -400,7 +399,6 @@ def kirim_laporan_sppg():
                 file_path = os.path.join(target_dir, unique_filename)
                 file.save(file_path)
 
-        # Format Tanggal
         if '-' in str(tanggal_kejadian):
             try:
                 tanggal_obj = datetime.strptime(str(tanggal_kejadian), '%Y-%m-%d').date()
@@ -540,11 +538,7 @@ def get_semua_laporan_bgn():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# =========================================================================
-# ENDPOINTS DINAS VALIDATOR & BGN MONITORING PUSAT
-# =========================================================================
 
-# --- TAMBAHKAN ENDPOINT INI UNTUK DASHBOARD DINAS ---
 @app.route('/api/dinas/laporan-terbaru/<int:user_id>', methods=['GET'])
 def get_laporan_terbaru_dinas(user_id):
     try:
@@ -554,7 +548,6 @@ def get_laporan_terbaru_dinas(user_id):
 
         role_lower = user.peran.lower() if user.peran else ''
 
-        # Filter laporan sesuai ranah tugas dinas masing-masing
         if 'dinas lingkungan hidup' in role_lower or 'dlh' in role_lower:
             query_filter = (User.peran.ilike('%limbah%')) | (Laporan.jenis_laporan.ilike('%Kebakaran%')) | (Laporan.jenis_laporan.ilike('%Gas%'))
         elif 'dinas pendidikan' in role_lower or 'disdik' in role_lower:
@@ -564,7 +557,6 @@ def get_laporan_terbaru_dinas(user_id):
         else:
             query_filter = (Laporan.user_id == user_id)
 
-        # Ambil 5 laporan terbaru sesuai bidang dinas
         laporan_terbaru = Laporan.query.join(User, Laporan.user_id == User.id, isouter=True)\
             .filter(query_filter)\
             .order_by(Laporan.tanggal_laporan.desc())\
@@ -577,6 +569,7 @@ def get_laporan_terbaru_dinas(user_id):
 
     except Exception as e:
         return jsonify({"status": "error", "message": f"Server Error Dinas Terbaru: {str(e)}"}), 500
+
 
 # =========================================================================
 # ENDPOINTS EDIT PROFIL PETUGAS & USER MANAGEMENT
@@ -717,11 +710,9 @@ def upload_slhs(user_id):
             file_path = os.path.join(target_dir, unique_filename)
             file.save(file_path)
 
-            # Simpan nama file ke atribut user (di kolom `sertifikat_slhs` atau sejenisnya)
             if hasattr(user, 'sertifikat_slhs'):
                 user.sertifikat_slhs = unique_filename
             else:
-                # Alternatif simpan nama file ke field tambahan/meta jika belum ada kolomnya
                 setattr(user, 'sertifikat_slhs', unique_filename)
 
             db.session.commit()
@@ -749,7 +740,7 @@ def get_slhs(user_id):
 
         filename = getattr(user, 'sertifikat_slhs', None)
         if filename:
-            file_url = f"http://localhost:5000/static/uploads/bukti_laporan/{filename}"
+            file_url = f"https://ratra.pythonanywhere.com/static/uploads/bukti_laporan/{filename}"
             return jsonify({
                 "status": "success",
                 "is_uploaded": True,
