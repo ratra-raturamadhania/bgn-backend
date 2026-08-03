@@ -14,7 +14,7 @@ app = Flask(__name__)
 CORS(app)
 
 # =========================================================================
-# KONEKSI DATABASE & CONFIG UPLOAD (MENGGUNAKAN SQLITE UNTUK PYTHONANYWHERE FREE)
+# KONEKSI DATABASE & CONFIG UPLOAD (MENGGUNAKAN SQLITE)
 # =========================================================================
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bgn_mbg.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -197,7 +197,7 @@ def update_password_dalam_aplikasi():
 
 
 # =========================================================================
-# ENDPOINTS API LAPORAN KENDALA (PETUGAS LAPANGAN & DINAS PASANGAN)
+# ENDPOINTS API LAPORAN KENDALA
 # =========================================================================
 
 @app.route('/api/petugas/laporan', methods=['POST'])
@@ -359,7 +359,7 @@ def ambil_ringkasan(user_id):
 
 
 # =========================================================================
-# ENDPOINTS KHUSUS ROLE SPPG (INPUT FORM KENDALA DAPUR & DASHBOARD)
+# ENDPOINTS SPPG
 # =========================================================================
 
 @app.route('/api/sppg/laporan', methods=['POST'])
@@ -478,7 +478,7 @@ def get_ringkasan_sppg(user_id):
 
 
 # =========================================================================
-# ENDPOINTS DINAS VALIDATOR & BGN MONITORING PUSAT
+# ENDPOINTS DINAS & BGN
 # =========================================================================
 
 @app.route('/api/dinas/validasi/<int:laporan_id>', methods=['PUT'])
@@ -572,7 +572,7 @@ def get_laporan_terbaru_dinas(user_id):
 
 
 # =========================================================================
-# ENDPOINTS EDIT PROFIL PETUGAS & USER MANAGEMENT
+# ENDPOINTS PROFIL & USER
 # =========================================================================
 
 @app.route('/api/petugas/profil/<int:user_id>', methods=['GET'])
@@ -682,7 +682,7 @@ def change_password(user_id):
 
 
 # =========================================================================
-# ENDPOINTS UNTUK SERTIFIKAT SLHS (SPPG)
+# ENDPOINTS SLHS
 # =========================================================================
 
 @app.route('/api/users/upload-slhs/<int:user_id>', methods=['POST'])
@@ -724,7 +724,7 @@ def upload_slhs(user_id):
                 "file_name": unique_filename
             }), 200
         else:
-            return jsonify({"status": "error", "message": "Format file tidak didukung! (Gunakan PDF, JPG, PNG)"}), 400
+            return jsonify({"status": "error", "message": "Format file tidak didukung!"}), 400
 
     except Exception as e:
         db.session.rollback()
